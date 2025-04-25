@@ -55,6 +55,7 @@ public:
             }
             if (sleepSec < 0) 
                 sleepSec = 0;
+            ESPNowMux::Instance->bwakeup.printPkts();
             deepSleep(1000 * sleepSec);
         }
     }
