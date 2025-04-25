@@ -10,7 +10,12 @@ JStuff j;
 CLI_VARIABLE_FLOAT(x, 1);
 
 class BSleepNode {
+    SPIFFSVariable<int> wakeups = SPIFFSVariable<int>("/BSlpWakes", 0);
+    SPIFFSVariable<int> msAwake = SPIFFSVariable<int>("/BStmAwake", 0);
+    DeepSleepElapsedTimer dsTime = DeepSleepElapsedTimer("/BS_dset");
+
     std::map<string,int> macsSeen;
+    int pktsSeen = 0;
 public: 
     string mac = getMacAddress().c_str();
     ReliableStreamESPNow espNow = ReliableStreamESPNow("BSLEEP", true);
@@ -19,19 +24,28 @@ public:
         if (in != "") { 
             OUT("<<<< %s", in.c_str());
             macsSeen[in]++;
+            pktsSeen++;
         }
         if (j.secTick(1)) { 
             OUT(">>>> %s", mac.c_str());
             espNow.write(mac);
         }
         if (millis() > 5000) { 
+            msAwake = msAwake + millis();
             float sleepSec = ESPNowMux::Instance->bwakeup.getSleepSec();
-            OUT("macs seen %d sleep %.2f", macsSeen.size(), sleepSec);
+            OUT(sfmt("wakes %d wakeSec %.2f realSec %.2f macs %d pkts %d sleep %.2f ", 
+                wakeups.read(), msAwake / 1000.0, dsTime.millis() / 1000.0,  
+                macsSeen.size(), pktsSeen, sleepSec) + ESPNowMux::Instance->bwakeup.getStats());
             for(auto m : macsSeen) {
                 OUT("%12s %d", m.first.c_str(), m.second);
             }
+            if (macsSeen.size() > 0) {
+                dsTime.reset();
+                wakeups = 0;
+                msAwake = 0;
+            }
             if (sleepSec < 0) 
-                sleepSec = 60;
+                sleepSec = 0;
             deepSleep(1000 * sleepSec);
         }
     }
