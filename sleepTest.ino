@@ -16,10 +16,18 @@ class BSleepNode {
 
     std::map<string,int> macsSeen;
     int pktsSeen = 0;
+    bool firstLoop = true;
 public: 
     string mac = getMacAddress().c_str();
     ReliableStreamESPNow espNow = ReliableStreamESPNow("BSLEEP", true);
     void run() { 
+        if (firstLoop == true) { 
+            firstLoop = false;
+            if (getResetReason() != 5) {
+                wakeups = 0;
+                msAwake = 0;
+            }
+        }
         string in = espNow.read();
         if (in != "") { 
             OUT("<<<< %s", in.c_str());
@@ -32,6 +40,7 @@ public:
         }
         if (millis() > 5000) { 
             msAwake = msAwake + millis();
+            wakeups = wakeups + 1;
             float sleepSec = ESPNowMux::Instance->bwakeup.getSleepSec();
             OUT(sfmt("wakes %d wakeSec %.2f realSec %.2f macs %d pkts %d sleep %.2f ", 
                 wakeups.read(), msAwake / 1000.0, dsTime.millis() / 1000.0,  
